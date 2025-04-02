@@ -30,7 +30,7 @@ printf 'APT::Get::Assume-Yes \"true\";\n' > /etc/apt/apt.conf.d/90forceyes
 printf 'DPkg::Lock::Timeout \"30\";\n' > /etc/apt/apt.conf.d/85timeout
 echo 'DEBIAN_FRONTEND=noninteractive' > /etc/environment
 apt-get update
-apt-get install -y --no-install-recommends cmake libclang-dev libstdc++6 libc6
+apt-get install -y --no-install-recommends cmake libclang-dev libstdc++6 libc6 ca-certificates
 EOF
 
 # Install Just (for build scripts)
@@ -51,6 +51,10 @@ NODE_VERSION=$(cat /nvmrc | tr -d 'v\n')
 apt-get install -y --no-install-recommends nodejs=${NODE_VERSION}-1nodesource1
 EOF
 
+# Configure npm to use system certificates
+RUN npm config set strict-ssl true && \
+    npm config set cafile /etc/ssl/certs/ca-certificates.crt
+
 # Ensure this file is copied so we'll restart here if the file changes
 COPY rust-toolchain /rust-toolchain
 # Dummy command to just fetch the toolchain and cargo index
@@ -58,20 +62,15 @@ RUN rustup self update && rustup toolchain install && cargo search -q convex
 
 WORKDIR /convex
 COPY scripts ./scripts
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
-    cd scripts && \
-    npm install --verbose && \
-    ls -la node_modules/.bin/rush || true && \
-    npm list @microsoft/rush
+# Try to disable strict-ssl as the Linux VM may be causing issues
+# RUN npm  set strict-ssl false
+RUN npm ci --prefix scripts/
 
 # Disable build cache as it's not usable without a real git repo present
 ENV RUSH_BUILD_CACHE_ENABLED=0
 COPY npm-packages ./npm-packages
 COPY Justfile ./
-RUN --mount=type=cache,target=/convex/npm-packages/common/temp/,sharing=locked PATH="/convex/scripts/node_modules/.bin:$PATH" which rush || true && \
-    ls -la /convex/scripts/node_modules/.bin/rush || true && \
-    just rush install
+RUN --mount=type=cache,target=/convex/npm-packages/common/temp/,sharing=locked just rush install
 
 COPY --from=chef /tmp/recipe.json recipe.json
 # Use cargo-chef to build dependencies from the recipe created in the first stage
