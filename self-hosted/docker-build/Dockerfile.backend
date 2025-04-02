@@ -64,7 +64,7 @@ RUN npm ci --prefix scripts/
 ENV RUSH_BUILD_CACHE_ENABLED=0
 COPY npm-packages ./npm-packages
 COPY Justfile ./
-RUN --mount=type=cache,target=/convex/npm-packages/common/temp/,sharing=locked just rush install
+RUN --mount=type=cache,target=/convex/npm-packages/common/temp/,sharing=locked PATH="/convex/scripts/node_modules/.bin:$PATH" just rush install
 
 COPY --from=chef /tmp/recipe.json recipe.json
 # Use cargo-chef to build dependencies from the recipe created in the first stage
