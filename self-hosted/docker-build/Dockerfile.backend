@@ -58,13 +58,17 @@ RUN rustup self update && rustup toolchain install && cargo search -q convex
 
 WORKDIR /convex
 COPY scripts ./scripts
-RUN npm ci --prefix scripts/
+RUN npm ci --prefix scripts/ && \
+    ls -la scripts/node_modules/.bin/rush || true && \
+    npm list @microsoft/rush --prefix scripts/
 
 # Disable build cache as it's not usable without a real git repo present
 ENV RUSH_BUILD_CACHE_ENABLED=0
 COPY npm-packages ./npm-packages
 COPY Justfile ./
-RUN --mount=type=cache,target=/convex/npm-packages/common/temp/,sharing=locked PATH="/convex/scripts/node_modules/.bin:$PATH" just rush install
+RUN --mount=type=cache,target=/convex/npm-packages/common/temp/,sharing=locked PATH="/convex/scripts/node_modules/.bin:$PATH" which rush || true && \
+    ls -la /convex/scripts/node_modules/.bin/rush || true && \
+    just rush install
 
 COPY --from=chef /tmp/recipe.json recipe.json
 # Use cargo-chef to build dependencies from the recipe created in the first stage
