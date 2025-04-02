@@ -58,9 +58,10 @@ RUN rustup self update && rustup toolchain install && cargo search -q convex
 
 WORKDIR /convex
 COPY scripts ./scripts
-RUN npm ci --prefix scripts/ && \
-    ls -la scripts/node_modules/.bin/rush || true && \
-    npm list @microsoft/rush --prefix scripts/
+RUN cd scripts && \
+    npm install --verbose && \
+    ls -la node_modules/.bin/rush || true && \
+    npm list @microsoft/rush
 
 # Disable build cache as it's not usable without a real git repo present
 ENV RUSH_BUILD_CACHE_ENABLED=0
